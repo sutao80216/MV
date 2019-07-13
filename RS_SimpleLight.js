@@ -3,10 +3,19 @@
  * @author biud436
  * 
  * @help
- *
- * This plugin commands allows you to enable or disable a lantern.
- *
+ * So far we have implement a lantern using images and it is good choices.
+ * However this plugin adds effects using shader so we have possible performance penalties in less powerful devices such as phones.
+ * it is something that you should take into account.
+ * 
+ * Many light plugins are provided a lot of complex plugin commands.
+ * But, this plugin provides two simple plugin commands it is that enable or disable.
+ * 
+ * To turn on the lantern effect, First you must call the plugin command, as follows.
+ * 
  * RS_SimpleLight Enable
+ * 
+ * To turn off the lantern effect, it calls a plugin command, as follows.
+ * 
  * RS_SimpleLight Disable
  * 
  * ===============================================================
@@ -16,6 +25,8 @@
  * 2018.12.30 (v1.1.0) :
  * - Now it is supported in RPG Maker MV v1.6.1.
  * (I've been rewritten shader for RPG Maker MV v1.6.1)
+ * 2019.02.24 (v1.1.01) :
+ * - Fixed an issue that is not loaded a save file that you saved before using this plugin.
  */
 
 var Imported = Imported || {};
@@ -293,20 +304,19 @@ RS.SimpleLight = RS.SimpleLight || {};
   };
 
   Game_System.prototype.updateLightProperty = function () {
-    if(!this._lightProp) return;
+    if(!this._lightProp) this.initLightProperty();
     this.setLightProperty('direction', $gamePlayer.direction());
     this.setLightProperty('resolution', [Graphics.boxWidth, Graphics.boxHeight]);
   };  
 
   Game_System.prototype.setLightProperty = function (name, value) {
-    if(this._lightProp) {
-      this._lightProp[name] = value;
-      return this._lightProp[name];
-    }
-    return 0.0;
+    if(!this._lightProp) this.initLightProperty();
+    this._lightProp[name] = value;
+    return this._lightProp[name];
   };
 
   Game_System.prototype.enabledLight = function () {
+    if(!this._lightProp) this.initLightProperty();
     return this._lightProp['light'] === true;
   };
 

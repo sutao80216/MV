@@ -88,6 +88,11 @@
  * 2019.01.09 (v1.0.4) :
  * - 양(10^28) 까지 표시 가능
  * - 자릿수가 클수록 스프라이트가 더 높이 튀는 현상을 해결하였습니다.
+ * 2019.06.13 (v1.0.8) :
+ * - 기본으로 제공되는 이미지에 새로운 자릿수를 추가하였습니다.
+ * - 지수 표현을 쓰지 않고 숫자 값을 그대로 표시합니다.
+ * - 배틀 로그에도 한글 데미지 값이 적용됩니다.
+ * - 스위치 문을 제거하였습니다.
  */
 /*:ko
  * @plugindesc 데미지를 수 표기법에 맞춰서 표시합니다 <RS_HangulDamages>
@@ -178,6 +183,11 @@
  * 2019.01.09 (v1.0.4) :
  * - 양(10^28) 까지 표시 가능
  * - 자릿수가 클수록 스프라이트가 더 높이 튀는 현상을 해결하였습니다.
+ * 2019.06.13 (v1.0.8) :
+ * - 기본으로 제공되는 이미지에 새로운 자릿수를 추가하였습니다.
+ * - 지수 표현을 쓰지 않고 숫자 값을 그대로 표시합니다.
+ * - 배틀 로그에도 한글 데미지 값이 적용됩니다.
+ * - 스위치 문을 제거하였습니다.
  */
 
 var Imported = Imported || {};
@@ -235,8 +245,12 @@ RS.HangulDamages.Params = RS.HangulDamages.Params || {};
         "해": 5,
         "자": 6,
         "양": 7,
-        "X": 8
+        "구": 8,
+        "간": 9,
+        "X": 10
     };
+
+    $.Params.HANGUL_DIGITS = ["천", "만", "억", "조", "경", "해", "자", "양", "구", "간"];
 
     $.Params.HANGUL_BASE_ROW = Number(parameters["hangulBaseRow"]) || 5;
     $.Params.MISS_BASE_ROW = Number(parameters["missBaseRow"]) || 4;
@@ -276,48 +290,27 @@ RS.HangulDamages.Params = RS.HangulDamages.Params || {};
 
         whereDigits(strings) {
             var digits = [];
-            var ret = [];
+            var numberString = [];
             var len = 0;
     
-            ret = strings.toCommaAlpha().split(",");
-            len = ret.length;
-            
-            for(var i = 0; i < len; i++) {
-                var n = Number(ret[i]);
-                // '한글 맞춤법' 제5장 띄어쓰기, 제2절, 제44항에 의하면, 수를 표기할 때,
-                // '12억 3456만 7898', '3243조 7867억 8927만 6354'와 같이 표기해야 한다.
-                // '12억 7898'에서 만 단위가 없을 수도 있다.
-                if(n === 0 || !n) continue;
-                digits.push(n);            
-                if((len - 1) !== i) { // 천 단위 생략
-                    switch(i) {
-                        case (len - 2):
-                        digits.push("만"); // 만(萬) means 10,000 (10^4)
-                        break;
-                        case (len - 3):
-                        digits.push("억"); // 억(億) means 100,000,000 (10^8)
-                        break;
-                        case (len - 4):
-                        digits.push("조"); // 조(兆) means 1,000,000,000,000 (10^12)
-                        break;
-                        case (len - 5):
-                        digits.push("경"); // 경(京) means 10,000,000,000,000,000 (10^16)
-                        break;
-                        case (len - 6): 
-                        digits.push("해") // 해(垓) means 10^20
-                        break;
-                        case (len - 7): 
-                        digits.push("자") // 자(秭) means 10^24
-                        break;      
-                        case (len - 8): 
-                        digits.push("양") // 양(穰) means 10^28
-                        break;                                             
-                    }
-                    digits.push("X"); // 띄어쓰기 추가
-                }
-            }
+            numberString = strings.toCommaAlpha().split(",");
+            len = numberString.length;
     
-            return digits.join(""); // 문자열로 변환
+            numberString = numberString.reverse();
+    
+            for(var i = 0; i < len; i++) {
+                var n = Number(numberString[i]);
+                if(n === 0 || !n) continue;
+                
+                if(i === 0) continue;
+
+                var currentChar = $.Params.HANGUL_DIGITS[i];
+                if(currentChar != "") digits.push(n + currentChar);
+
+            }
+
+            return digits.reverse().join("X");
+
         }
 
         updateDirty(string, baseRow, value, row, w, h) {
@@ -338,7 +331,10 @@ RS.HangulDamages.Params = RS.HangulDamages.Params || {};
         };
 
         createDigits(baseRow, value) {
-            var string = Math.abs(value).toString();
+            // 큰 숫자 값 표기를 위해 사용.
+            var Formatter = new Intl.NumberFormat('ko-KR', {useGrouping:false});
+            var string = Formatter.format(Math.abs(value));
+
             var row = baseRow + (value < 0 ? 1 : 0);
     
             var w = this.digitWidth();
@@ -351,6 +347,57 @@ RS.HangulDamages.Params = RS.HangulDamages.Params || {};
     }
 
     window.Sprite_Damage = Sprite_HangulDamage;
+
+    //===================================================================
+    // Window_BattleLog
+    //===================================================================
+
+    Window_BattleLog.prototype.whereDigits = function(strings) {
+        var digits = [];
+        var numberString = [];
+        var len = 0;
+        var Formatter = new Intl.NumberFormat('ko-KR', {useGrouping:false});
+
+        strings = Formatter.format(Math.abs(strings));
+
+        numberString = strings.toCommaAlpha().split(",");
+        len = numberString.length;
+
+        numberString = numberString.reverse();
+
+        for(var i = 0; i < len; i++) {
+            var n = Number(numberString[i]);
+            if(n === 0 || !n) continue;
+            
+            if(i === 0) continue;
+
+            var currentChar = $.Params.HANGUL_DIGITS[i];
+            if(currentChar != "") digits.push(n + currentChar);
+
+        }
+
+        return digits.reverse().join(" ");
+    };
+
+    Window_BattleLog.prototype.makeHpDamageText = function(target) {
+        var result = target.result();
+        var damage = result.hpDamage;
+        var isActor = target.isActor();
+        var fmt;
+        if (damage > 0 && result.drain) {
+            fmt = isActor ? TextManager.actorDrain : TextManager.enemyDrain;
+            return fmt.format(target.name(), TextManager.hp, damage);
+        } else if (damage > 0) {
+            fmt = isActor ? TextManager.actorDamage : TextManager.enemyDamage;
+            return fmt.format(target.name(), this.whereDigits(damage));
+        } else if (damage < 0) {
+            fmt = isActor ? TextManager.actorRecovery : TextManager.enemyRecovery;
+            return fmt.format(target.name(), TextManager.hp, -damage);
+        } else {
+            fmt = isActor ? TextManager.actorNoDamage : TextManager.enemyNoDamage;
+            return fmt.format(target.name());
+        }
+    };    
 
     //===================================================================
     // Scene_Boot

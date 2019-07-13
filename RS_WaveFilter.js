@@ -111,7 +111,31 @@
  *      - cond : Specify true or false whether the wave effect is used.
  *      - waveAmp : the default value is to 0.02
  *      - waveSpeed : the default value is to 0.25
- *
+ * 
+ * =============================================================================
+ * Timing
+ * =============================================================================
+ * if you want to fade-out or fade-in the properties of the wave effect applied to the picture, 
+ * Let's call the following function.
+ * 
+ * waveUtils.quadraticBezier(start, median, end, dt);
+ * 
+ * dt stands for delta time, The delta time parameter is the elapsed time since the last frame. 
+ * if you omit it, The wave filter will measure the elapsed time automatically 
+ * and fill it (In fact, It will be filled with the current time value) 
+ * 
+ * To get started with implementing this, add this code just using the script command.
+ * 
+ * var _s, _p, _e, _r;
+ * _s = new Point(0.0, 0.0);
+ * _p = new Point(0.07, 0.25);
+ * _e = new Point(0.0, 0.0);
+ * _r = waveUtils.quadraticBezier(_s, _p, _e);
+ * $gameScreen.startWave(1, _r.x, _r.y);
+ * 
+ * The value of the wave speed is started with 0.0 and then increased until 0.07 and then decreased to 0.0.
+ * The value of the wave amplitude is also started with 0.0 and then increased until 0.25 and then decreased to 0.0.
+ * 
  * =============================================================================
  * Change Log
  * =============================================================================
@@ -140,6 +164,8 @@
  * - Fixed the issue that the wave effect do a horizontal looping likes as Tiling Sprite.
  * 2018.11.29 (v1.5.10) :
  * - Fixed the bug that causes an error when calling Erase Event event command.
+ * 2019.02.24 (v1.5.11) :
+ * - Fixed an issue that is not loaded a save file that you saved before using this script.
  * =============================================================================
  * Terms of Use
  * =============================================================================
@@ -277,6 +303,27 @@
  *      - waveSpeed : UV 속도. 기본 값은 0.25입니다.
  *
  * =============================================================================
+ * 스크립트 사용법
+ * =============================================================================
+ * 그림에 적용되는 웨이브 효과의 속성을 Fade-Out이나 Fade-In하고 싶다면 다음과 같이 하시면
+ * 됩니다.
+ * 
+ * waveUtils.quadraticBezier(시작, 중간, 끝, 시간);
+ * 
+ * 시간 값을 생략하면 매 프레임 값이 바뀌게 되며 자세한 예제는 다음과 같습니다.
+ * 
+ * var _s, _p, _e, _r;
+ * _s = new Point(0.0, 0.0);
+ * _p = new Point(0.07, 0.25);
+ * _e = new Point(0.0, 0.0);
+ * _r = waveUtils.quadraticBezier(_s, _p, _e);
+ * $gameScreen.startWave(1, _r.x, _r.y);
+ * 
+ * 이렇게 하게 되면,
+ * 웨이브 속도는 0.0에서 시작했다가 0.07을 찍고 다시 0.0으로 되돌아오며,
+ * 웨이브의 진폭은 0.0에서 시작해서 0.25를 찍고 0.0으로 되돌아옵니다.
+ * 
+ * =============================================================================
  * 변동 사항
  * =============================================================================
  * 2016.01.14 (v1.0.0) - First Release.
@@ -304,6 +351,8 @@
  * - Fixed the issue that the wave effect do a horizontal looping likes as Tiling Sprite.
  * 2018.11.29 (v1.5.10) :
  * - Fixed the bug that causes an error when calling Erase Event event command.
+ * 2019.02.24 (v1.5.11) :
+ * - Fixed an issue that is not loaded a save file that you saved before using this script.
  * =============================================================================
  * Terms of Use
  * =============================================================================
@@ -902,27 +951,33 @@ RS.WaveConfig = RS.WaveConfig || {};
   };
 
   Game_System.prototype.getWaveEnabled = function () {
-   return this._waveProp.wave;
+    if(!this._waveProp) this.initWaveProperty();
+    return this._waveProp.wave;
   };
 
   Game_System.prototype.getWaveHeight = function () {
-   return this._waveProp.waveHeight;
+    if(!this._waveProp) this.initWaveProperty();
+    return this._waveProp.waveHeight;
   };
 
   Game_System.prototype.getWaveFrequency = function () {
-   return this._waveProp.waveFrequency;
+    if(!this._waveProp) this.initWaveProperty();
+    return this._waveProp.waveFrequency;
   };
 
   Game_System.prototype.getWaveTime = function () {
-   return this._waveProp.waveTime;
+    if(!this._waveProp) this.initWaveProperty();
+    return this._waveProp.waveTime;
   };
 
   Game_System.prototype.getUVSpeed = function () {
-   return this._waveProp.UVSpeed;
+    if(!this._waveProp) this.initWaveProperty();
+    return this._waveProp.UVSpeed;
   };
 
   Game_System.prototype.getWavePhase = function () {
-   return this._waveProp.wavePhase;
+    if(!this._waveProp) this.initWaveProperty();
+    return this._waveProp.wavePhase;
   };
 
   //============================================================================
@@ -954,11 +1009,11 @@ RS.WaveConfig = RS.WaveConfig || {};
   };
 
   Game_CharacterBase.prototype.waveFrequency = function () {
-    return this._waveFrequency;
+    return this._waveFrequency || 0.02;
   };
 
   Game_CharacterBase.prototype.waveSpeed = function () {
-    return this._waveSpeed;
+    return this._waveSpeed || 0.25;
   };
 
   //============================================================================
@@ -1019,6 +1074,46 @@ RS.WaveConfig = RS.WaveConfig || {};
   Game_Event.prototype.refresh = function() {
     alias_Game_Event_refresh.call(this);
     this.updateWaveEffect();
+  };
+
+  //============================================================================
+  // Wave Utils
+  //============================================================================
+
+  window.waveUtils = {};
+
+  /**
+   * @example
+    var _s, _e, _r;
+    _s = new Point(0.0, 0.0);
+    _e = new Point(0.07, 0.25);
+    _r = waveUtils.mix(_s, _e);
+    $gameScreen.startWave(1, _r.x, _r.y);
+   */    
+  waveUtils.mix = function(vec1, vec2, t) {
+    var vec = new Point(0, 0);
+    if(!t) t = (Date.now() % 10000 / 10000);
+    vec.x = vec1.x + t * (vec2.x - vec1.x);
+    vec.y = vec1.x + t * (vec2.y - vec1.y);
+    return vec;
+  };
+
+  /**
+   * @example
+    var _s, _p, _e, _r;
+    _s = new Point(0.0, 0.0);
+    _p = new Point(0.07, 0.25);
+    _e = new Point(0.0, 0.0);
+    _r = waveUtils.quadraticBezier(_s, _p, _e);
+    $gameScreen.startWave(1, _r.x, _r.y);
+   */  
+  waveUtils.quadraticBezier = function(vec1, vec2, vec3, t) {
+    var d, e, p;
+    if(!t) t = (Date.now() % 10000 / 10000);
+    d = waveUtils.mix(vec1, vec2, t);
+    e = waveUtils.mix(vec2, vec3, t);
+    p = waveUtils.mix(d, e, t);
+    return p;
   };
 
   //============================================================================
